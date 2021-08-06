@@ -5,6 +5,17 @@ const keys = require('../config/keys');
 
 const User = mongoose.model('users');
 
+passport.serializeUser((user, done) => {
+    done(null, user.id);
+});
+
+passport.deserializeUser((id, done) => {
+    User.findById(id)
+        .then(user => {
+            done(null, user);
+        });
+});
+
 // telling passport which strategy to use. This one is specific to Google
 passport.use(new GoogleStrategy({
     clientID: keys.googleClientID,
@@ -12,6 +23,15 @@ passport.use(new GoogleStrategy({
     callbackURL: '/auth/google/callback'
     }, 
     (accessToken, refreshToken, profile, done) => {
-        new User({ googleId: profile.id }).save();
+        User.findOne({ googleId: profile.id })
+            .then(existingUser => {
+                if (existingUser) {
+                    done(null, existingUser);
+                } else {
+                    new User({ googleId: profile.id })
+                    .save()
+                    .then(user => done(null, user));
+                }
+            })
     })
 );
